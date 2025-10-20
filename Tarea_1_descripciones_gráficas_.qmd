@@ -1,0 +1,709 @@
+---
+title: "CDMX"
+author: "Arath Nava"
+format: html
+editor: visual
+---
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(sf)          # Para datos espaciales
+library(viridis)     # Para paletas de colores
+library(janitor)    # Para limpiar nombres de columnas
+library(scales)     # Para mejorar ejes en gráficos
+library(dplyr)
+```
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| message: false
+
+
+#datos_total <- read_csv("/Users/arathnava/Desktop/E_A_2025/Data /cpv_valor_09.csv", na = c("ND"))
+datos_total <- read_csv("/Users/arathnava/Desktop/E_A_2025/Data /cpv_valor_09.csv", na = c("ND"))
+
+datos_total <- datos_total |> filter(año == 2020)
+#unique(datos_total$indicador)
+datos_seleccion <- datos_total |> 
+  filter(indicador %in% c("Edad mediana", "Población total", "Porcentaje de la población derechohabiente en el IMSS", "Porcentaje de viviendas con electricidad",
+  "Porcentaje de viviendas particulares habitadas que disponen de Internet"), desc_municipio != "Estatal") |> 
+  select(desc_municipio, indicador, valor)
+```
+
+```{r}
+municipios_cdmx <- st_read("/Users/arathnava/Desktop/E_A_2025/Data /09mun.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+
+# Crear mapa de municipios de la CDMX
+mapa_municipios <- ggplot(municipios_cdmx) +
+  geom_sf(fill = "orchid", color = "white", size = 0.3) +
+  labs(
+    title = "Alcaldias de la Ciudad de México",
+    subtitle = paste("Total de alacaldias:", nrow(municipios_cdmx)),
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+
+print(mapa_municipios)
+```
+
+```{r}
+#| label: preparacion-final
+#| code-fold: true
+
+datos_cdmx <- datos_seleccion |>
+    pivot_wider(names_from = indicador, values_from = valor) |>
+    clean_names() |>
+    mutate(NOMGEO = desc_municipio)
+
+# 2. Unir el mapa con los indicadores para crear la versión ESPACIAL
+datos <- left_join(municipios_cdmx, datos_cdmx, by = "NOMGEO")
+
+datos_graficos <- st_drop_geometry(datos)
+
+print("Resumen de los datos espaciales:")
+summary(datos)
+
+print("Primeras filas de los datos para gráficos:")
+head(datos_graficos)
+```
+
+
+
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-align: center
+
+
+ggplot(datos) +
+  geom_sf(aes(fill = edad_mediana), color = "white", size = 0.1) +
+  scale_fill_viridis_c(
+    name = "Edad (mediana)"
+  ) +
+  labs(
+    title = "Edad (mediana) de las alcaldias de la CDMX",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10),
+    legend.position = "right"
+  )
+
+```
+
+## Histograma
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_histogram(aes(edad_mediana), color="black", fill = "aquamarine", boundary=min(datos$edad_mediana), binwidth = 2) +
+  labs(
+    title = "Distribución de la Edad",
+    x = "Edad (años)", y = "Frecuencia"
+  ) +
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+```
+
+## Gráfica de densidad
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_density(aes(edad_mediana), color="black", fill = "plum", alpha=0.6) +
+  labs(
+    title = "Distribución de la Edad",
+    x = "Edad (años)", y = "Densidad"
+  ) +
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+
+```
+
+## Boxplot
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = edad_mediana)) +
+    geom_boxplot(
+    fill = "plum",           # Color de relleno
+    color = "#2C5F7A",          # Color del borde más oscuro
+    alpha = 0.8,                # Transparencia
+    outlier.color = "#E74C3C",  # Color rojo para outliers
+    outlier.size = 2.5,         # Tamaño de outliers
+    outlier.alpha = 0.7,        # Transparencia de outliers
+    width = 0.5,                # Ancho del boxplot
+    notch = TRUE,               # Muescas para intervalo de confianza
+    notchwidth = 0.7            # Ancho de las muescas
+  ) +
+  geom_jitter(alpha = 0.3, color = "black", size = 1.5, width = 0.1) +
+  scale_y_continuous(breaks = pretty_breaks(n = 8), labels = function(x) paste(x, "años")) +
+  labs(title = "Distribución de la Edad (mediana)", 
+  subtitle = "Población de la capital de la cdmx",
+  y = "Edad (años)",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Gráfico de violín
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = edad_mediana)) +
+    geom_violin(fill = "plum", color = "#2C5F7A", alpha = 0.8,
+    trim = FALSE,               # No recortar las colas
+    scale = "width", width = 0.8, linewidth = 0.8) +
+    geom_boxplot( width = 0.15, fill = "white", color = "#2C5F7A", alpha = 0.9,
+    outlier.color = "#E74C3C", outlier.size = 1.5, outlier.alpha = 0.8, notch = FALSE) +
+  stat_summary(fun = median, geom = "point", shape = 21, size = 3, fill = "white",
+  color = "#2C5F7A", stroke = 1.5) +
+  geom_jitter(alpha = 0.2, color = "#34495E", size = 0.8, width = 0.05) +
+  scale_y_continuous(breaks = pretty_breaks(n = 8), labels = function(x) paste(x, "años")) +
+  labs(title = "Distribución de la Edad (mediana)", 
+  subtitle = "Población de la CDMX",
+  y = "Edad (años)",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+```
+
+## Q-Q Plot (comparación de cuantiles)
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+
+# Q-Q Plot básico para normalidad
+ggplot(data = datos_graficos, aes(sample = edad_mediana)) +
+    stat_qq(color = "darkorange", size = 2, alpha = 0.7) +
+    stat_qq_line(color = "#E74C3C", linewidth = 1, linetype = "dashed") +
+    scale_x_continuous(name = "Cuantiles Teóricos (Distribución Normal)",
+    breaks = pretty_breaks(n = 6)) +
+    scale_y_continuous(name = "Cuantiles Muestrales (Edad mediana)",
+    breaks = pretty_breaks(n = 6),
+    labels = function(x) paste(x, "años")) +
+    labs(title = "Gráfico Q-Q para Normalidad",
+    subtitle = "Edad Mediana - Población CDMX") +
+    theme_bw()+
+    theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+
+
+```
+
+## Dot Plot (Gráfico de puntos)
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-height: 16
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = edad_mediana, y = reorder(NOMGEO, edad_mediana))) +
+  geom_point(color = "plum", size = 3, alpha = 0.8) +
+  geom_segment(aes(x = 0, xend = edad_mediana, y = NOMGEO, yend = NOMGEO),
+    color = "#BDC3C7", size = 0.5, alpha = 0.7) +
+  scale_x_continuous(
+    name = "Edad (años)",
+    breaks = pretty_breaks(n = 6),
+    expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(
+    name = "Municipios",
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  labs(
+    title = "Dot Plot - Edad (mediana) por Municipio",
+    subtitle = "CDMX") +
+  theme_bw()+
+    theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=9),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+```
+
+# Derechohabientes IMSS (%)
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-align: center
+
+
+ggplot(datos) +
+  geom_sf(aes(fill = porcentaje_de_la_poblacion_derechohabiente_en_el_imss), color = "white", size = 0.1) +
+  scale_fill_viridis_c(
+    name = "IMSS"
+  ) +
+  labs(
+    title = "Derechohabientes IMSS (%) de CDMX",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10),
+    legend.position = "right"
+  )
+
+```
+
+## Histograma
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_histogram(aes(porcentaje_de_la_poblacion_derechohabiente_en_el_imss), color="black", fill = "plum", boundary=min(datos$porcentaje_de_la_poblacion_derechohabiente_en_el_imss), binwidth = 5) +
+  labs(
+    title = "Derechohabientes IMSS (%)",
+    x = "Derechohabientes (%)", y = "Frecuencia"
+  ) +
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+```
+
+## Gráfica de densidad
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_density(aes(porcentaje_de_la_poblacion_derechohabiente_en_el_imss), color="black", fill = "seagreen", alpha=0.6) +
+  labs(
+    title = "Derechohabientes IMSS (%)",
+    x = "Derechohabientes (%)", y = "Densidad"
+  ) +
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+
+```
+
+## Boxplot
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = porcentaje_de_la_poblacion_derechohabiente_en_el_imss)) +
+    geom_boxplot(
+    fill = "seagreen",           # Color de relleno
+    color = "#2C5F7A",          # Color del borde más oscuro
+    alpha = 0.8,                # Transparencia
+    outlier.color = "#E74C3C",  # Color rojo para outliers
+    outlier.size = 2.5,         # Tamaño de outliers
+    outlier.alpha = 0.7,        # Transparencia de outliers
+    width = 0.5,                # Ancho del boxplot
+    notch = TRUE,               # Muescas para intervalo de confianza
+    notchwidth = 0.7            # Ancho de las muescas
+  ) +
+  geom_jitter(alpha = 0.3, color = "#34495E", size = 1.5, width = 0.1) +
+  scale_y_continuous(breaks = pretty_breaks(n = 8), labels = function(x) paste(x, "%")) +
+  labs(title = "Derechohabientes IMSS (%)", 
+  subtitle = "CDMX",
+  y = "Derechohabientes (%)",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Gráfico de violín
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = porcentaje_de_la_poblacion_derechohabiente_en_el_imss)) +
+    geom_violin(fill = "plum", color = "#2C5F7A", alpha = 0.8,
+    trim = ,               # No recortar las colas
+    scale = "width", width = 0.8, linewidth = 0.8) +
+    geom_boxplot( width = 0.15, fill = "white", color = "#2C5F7A", alpha = 0.9,
+    outlier.color = "#E74C3C", outlier.size = 1.5, outlier.alpha = 0.8, notch = FALSE) +
+  stat_summary(fun = median, geom = "point", shape = 21, size = 3, fill = "white",
+  color = "#2C5F7A", stroke = 1.5) +
+  geom_jitter(alpha = 0.2, color = "#34495E", size = 0.8, width = 0.05) +
+  scale_y_continuous(breaks = pretty_breaks(n = 8), labels = function(x) paste(x, "%")) +
+  labs(title = "Derechohabientes IMSS (%)", 
+  subtitle = "CDMX",
+  y = "Derechohabientes (%)",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+```
+
+## Q-Q Plot (comparación de cuantiles)
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+
+# Q-Q Plot básico para normalidad
+ggplot(data = datos_graficos, aes(sample = porcentaje_de_la_poblacion_derechohabiente_en_el_imss)) +
+    stat_qq(color = "#4A90E2", size = 2, alpha = 0.7) +
+    stat_qq_line(color = "#E74C3C", linewidth = 1, linetype = "dashed") +
+    scale_x_continuous(name = "Cuantiles Teóricos (Distribución Normal)",
+    breaks = pretty_breaks(n = 6)) +
+    scale_y_continuous(name = "Cuantiles Muestrales (Derechohabientes IMSS %)",
+    breaks = pretty_breaks(n = 6),
+    labels = function(x) paste(x, "%")) +
+    labs(title = "Gráfico Q-Q para Normalidad",
+    subtitle = "Derechohabientes IMSS (%) - CDMX") +
+    theme_bw()+
+    theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+
+
+```
+
+# Población total
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-align: center
+
+
+ggplot(datos) +
+  geom_sf(aes(fill = poblacion_total), color = "white", size = 0.1) +
+  scale_fill_viridis_c(
+    name = "Población",
+    trans = "log10",
+    labels = scales::comma_format()
+  ) +
+  labs(
+    title = "Población CDMX",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10),
+    legend.position = "right"
+  )
+
+```
+
+## Histograma
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_histogram(aes(poblacion_total), color="black", fill = "seagreen", boundary=min(datos$poblacion_total), bins=15) +
+  labs(
+    title = "Población",
+    x = "Población", y = "Frecuencia"
+  ) +
+  scale_x_log10(breaks = c(5000, 10000, 100000, 1e6), labels = scales::comma_format()) +  
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+```
+
+## Gráfica de densidad
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(datos_graficos) +
+  geom_density(aes(poblacion_total), color="black", fill = "plum", alpha=0.6) +
+  labs(
+    title = "Distribución Población",
+    x = "Personas", y = "Densidad"
+  ) +
+  scale_x_log10(breaks = c(5000, 10000, 100000, 1e6), labels = scales::comma_format()) + 
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+  )
+
+
+```
+
+## Boxplot
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = poblacion_total)) +
+    geom_boxplot(
+    fill = "plum",           # Color de relleno
+    color = "#2C5F7A",          # Color del borde más oscuro
+    alpha = 0.8,                # Transparencia
+    outlier.color = "#E74C3C",  # Color rojo para outliers
+    outlier.size = 2.5,         # Tamaño de outliers
+    outlier.alpha = 0.7,        # Transparencia de outliers
+    width = 0.5,                # Ancho del boxplot
+    notch = TRUE,               # Muescas para intervalo de confianza
+    notchwidth = 0.7            # Ancho de las muescas
+  ) +
+  geom_jitter(alpha = 0.3, color = "#34495E", size = 1.5, width = 0.1) +
+  scale_y_log10(breaks = c(5000, 10000, 100000, 1e6), labels = scales::comma_format()) +
+  labs(title = "Distribución Población", 
+  subtitle = "Capital CDMX",
+  y = "Personas",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Gráfico de violín
+
+```{r}
+#| code-fold: true
+#| fig-width: 7
+#| fig-align: center
+
+ggplot(data = datos_graficos, aes(x = "", y = poblacion_total)) +
+    geom_violin(fill = "seagreen", color = "#2C5F7A", alpha = 0.8,
+    trim = FALSE,               # No recortar las colas
+    scale = "width", width = 0.8, linewidth = 0.8) +
+    geom_boxplot( width = 0.15, fill = "white", color = "#2C5F7A", alpha = 0.9,
+    outlier.color = "#E74C3C", outlier.size = 1.5, outlier.alpha = 0.8, notch = FALSE) +
+  stat_summary(fun = median, geom = "point", shape = 21, size = 3, fill = "white",
+  color = "#2C5F7A", stroke = 1.5) +
+  geom_jitter(alpha = 0.2, color = "#34495E", size = 0.8, width = 0.05) +
+  scale_y_log10(breaks = c(5000, 10000, 100000, 1e6), labels = scales::comma_format()) +
+  labs(title = "Distribución Población", 
+  subtitle = "Capital CDMX",
+  y = "Personas",
+  x = "")+
+  theme_bw()+
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold"),
+    plot.subtitle = element_text(size=13),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13),
+    panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+      linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+  
+```
