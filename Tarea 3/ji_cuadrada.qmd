@@ -1,0 +1,1178 @@
+---
+title: "Distribución Ji-cuadrada"
+lang: es
+---
+
+Nava Calleros Arath - Tarea 3 
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library(plotly)
+library(scales)
+library(viridis)
+
+```
+
+
+
+La distribución ji-cuadrada (también conocida como chi-cuadrada, denotada como $\chi^2$) es una de las distribuciones de probabilidad continuas más importantes en estadística inferencial. Esta distribución surge en diversos contextos, especialmente en pruebas de bondad de ajuste, pruebas de independencia y en la estimación de varianzas poblacionales.
+
+
+::: {#def-ji_cuadrada}
+
+Una variable aleatoria continua $X$ sigue una distribución ji-cuadrada con $n$ grados de libertad, denotada como $X \sim \chi^2(n)$, si su función de densidad de probabilidad está dada por:
+
+\begin{equation}
+f(x) = \begin{cases}
+\frac{1}{\Gamma(n/2)} \left(\frac{1}{2}\right)^{n/2} x^{n/2-1} e^{-x/2} & \text{si } x > 0 \\
+0 & \text{en otro caso}
+\end{cases}
+\end{equation}
+
+donde:
+
+- $x > 0$ es el dominio de la variable aleatoria
+- $n > 0$ es el parámetro de grados de libertad
+- $\Gamma(n/2)$ es la función gamma evaluada en $n/2$
+
+:::
+
+
+
+**El Parámetro: Grados de Libertad (n)**
+
+El único parámetro de la distribución ji-cuadrada es **n**, conocido como los **grados de libertad**. Este parámetro tiene las siguientes características:
+
+- **Dominio**: $n > 0$ (puede ser cualquier número real positivo)
+- **Interpretación práctica**: Aunque $n$ puede ser cualquier real positivo, en aplicaciones estadísticas típicamente representa un número entero positivo
+- **Símbolo**: Se denota comúnmente como $n$, $\nu$ (nu), o $df$ (degrees of freedom)
+
+**Interpretación de los Grados de Libertad**
+
+Los grados de libertad representan el **número de variables aleatorias independientes** que se suman para formar la distribución ji-cuadrada. Específicamente:
+
+Si $Z_1, Z_2, \ldots, Z_n$ son variables aleatorias independientes e idénticamente distribuidas según una distribución normal estándar $N(0,1)$, entonces:
+
+$$X = Z_1^2 + Z_2^2 + \cdots + Z_n^2 \sim \chi^2(n)$$
+
+Posteriormente verificaremos esta propiedad por medio de una simulación numérica.
+
+
+
+## Propiedades de la Función de Densidad de Probabilidad (PDF)
+
+
+Como se indicó previamente, la función de densidad de probabilidad de la distribución ji-cuadrada con $n$ grados de libertad está definida como:
+
+\begin{equation}
+f(x; n) = \begin{cases}
+\frac{1}{\Gamma(n/2)} \left(\frac{1}{2}\right)^{n/2} x^{n/2-1} e^{-x/2} & \text{si } x > 0 \\
+0 & \text{en otro caso}
+\end{cases}
+\end{equation}
+
+
+**Propiedades Fundamentales**
+
+La distribución $\chi^2$ tiene **dominio** estrictamente positivo: $x \in (0, \infty)$. Esta característica surge naturalmente de su construcción como suma de cuadrados de variables aleatorias normales estándar independientes. Esta función toma valores no negativos en su **imagen**: $f(x) \in [0, \infty)$.
+
+### Efecto del Parámetro n en la Distribución
+
+El valor de los grados de libertad $n$ tiene el siguiente efecto en la forma de la distribución:
+
+- **Forma de la distribución**: 
+
+  - Para $n = 1$: Forma de "J" invertida (asimetría extrema hacia la derecha)
+  - Para $n = 2$: Distribución exponencial
+  - Para $n > 2$: Distribución unimodal con sesgo hacia la derecha
+  - Para $n$ grande: Se aproxima a una distribución normal
+
+
+**Comportamiento en los extremos**
+
+El comportamiento de la PDF en los extremos depende crucialmente del parámetro n:
+
+- **Límite en $x \to 0$**:
+
+  - Para n = 1: $\lim_{x \to 0} f(x) = \infty$
+  - Para n = 2: $f(0) = 0.5$
+  - Para n > 2: $\lim_{x \to 0} f(x) = 0$
+
+**Límite en $x \to \infty$**: Para todos los valores de n, $\lim_{x \to \infty} f(x) = 0$ debido al factor exponencial $e^{-x/2}$
+
+### Visualización de la PDF para Diferentes Valores de n
+
+```{r}
+#| label: pdf-variacion-n
+#| fig-cap: "Función de densidad de probabilidad ji-cuadrada para diferentes grados de libertad"
+
+# Definir valores enteros de n y rango de x
+n_valores <- c(1, 2, 3, 4, 5, 6, 8, 10, 12, 15)
+x_rango <- seq(0.01, 25, length.out = 1000)
+
+# Crear dataframe con todas las combinaciones
+df_pdf <- expand.grid(x = x_rango, n = n_valores) |> 
+  mutate(
+    densidad = dchisq(x, df = n),
+    n_factor = factor(n, levels = n_valores, labels = paste("n =", n_valores))
+  )
+
+# Gráfico principal con todas las curvas
+graf_param <- ggplot(df_pdf, aes(x = x, y = densidad, color = n_factor)) +
+  geom_line(linewidth=1.2)+
+  scale_color_viridis_d(name = "Grados de\nLibertad") +
+  xlim(0, 25) + 
+  ylim(0, 0.5) +
+  labs(
+    title = "Familia de Distribuciones Ji-cuadrada",
+    x = "x",
+    y = "f(x)"
+  )+ 
+   theme_minimal() + 
+   theme(
+         plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+         plot.subtitle = element_text(hjust = 0.5, size = 12),
+         axis.title = element_text(size = 12)
+         )
+
+ggplotly(graf_param)
+```
+
+
+**Análisis de casos particulares**
+
+```{r}
+#| label: casos-especiales
+#| warning: false
+#| fig-cap: "Casos especiales: n = 1, 2, 3, 4"
+
+# Casos especiales con análisis detallado
+x_especial <- seq(0.01, 12, length.out = 500)
+
+p_casos <- ggplot() +
+  geom_function(fun = function(x) dchisq(x, df = 1), 
+                aes(color = "n = 1 (J invertida)"), 
+                xlim = c(0.01, 12), size = 1.4) +
+  geom_function(fun = function(x) dchisq(x, df = 2), 
+                aes(color = "n = 2 (Exponencial)"), 
+                xlim = c(0.01, 12), size = 1.4) +
+  geom_function(fun = function(x) dchisq(x, df = 3), 
+                aes(color = "n = 3 (Unimodal)"), 
+                xlim = c(0.01, 12), size = 1.4) +
+  geom_function(fun = function(x) dchisq(x, df = 4), 
+                aes(color = "n = 4 (Moda = 2)"), 
+                xlim = c(0.01, 12), size = 1.4) +
+  scale_color_manual(
+    values = c("#e31a1c", "#1f78b4", "#33a02c", "#ff7f00"),
+    name = "Casos\nEspeciales"
+  ) +
+  xlim(0, 10) + ylim(0, 0.6) +
+  labs(
+    title = "Casos Especiales de la Distribución Ji-cuadrada",
+    subtitle = "Formas características para valores pequeños de n",
+    x = "x", y = "f(x)"
+  ) +
+  # Anotar características específicas
+  annotate("text", x = 5, y = 0.55, 
+           label = "n = 1: lím[x→0⁺] f(x) = ∞", 
+           color = "#e31a1c", size = 3.5, hjust = 0) +
+  annotate("text", x = 5, y = 0.5, 
+           label = "n = 2: f(x) = 0.5·e^(-x/2)", 
+           color = "#1f78b4", size = 3.5, hjust = 0) +
+  annotate("text", x = 5, y = 0.45, 
+           label = "n = 3: Moda en x = 1", 
+           color = "#33a02c", size = 3.5, hjust = 0) +
+  annotate("text", x = 5, y = 0.4, 
+           label = "n = 4: Moda en x = 2", 
+           color = "#ff7f00", size = 3.5, hjust = 0)+
+   theme_minimal() + 
+   theme(
+         plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+         plot.subtitle = element_text(hjust = 0.5, size = 12),
+         axis.title = element_text(size = 12)
+         )
+
+print(p_casos)
+```
+
+**Interpretación**
+
+**$n=1$**: La distribución presenta forma de "J invertida", monótonamente decreciente. Es la más sesgada de la familia, con varianza máxima relativa a la media.
+
+**$n = 2$**: Adopta forma exponencial $f(x) = \frac{1}{2}e^{-x/2}$. Es el único caso donde la función alcanza un valor finito en el origen.
+
+**$n\geq 3$**: Desarrolla forma unimodal con moda en $x = n - 2$. La distribución se vuelve progresivamente más simétrica conforme aumenta n.
+
+
+### Aproximación normal para $n$ grandes
+
+Conforme aumentan los grados de libertad, la distribución ji-cuadrada converge hacia una distribución normal con parámetros $\mu = n$ y $\sigma^2 = 2n$. Esta aproximación es prácticamente útil para $n \geq 30$.
+
+```{r}
+#| label: aproximacion-normal
+#| echo: true
+#| fig-cap: "Aproximación a la distribución normal para grados de libertad grandes"
+
+# Comparación con aproximación normal
+n_grandes <- c(10, 20, 30, 50)
+
+# Crear subgráficos para cada valor de n
+plots_normal <- list()
+
+for (i in seq_along(n_grandes)) {
+  n_val <- n_grandes[i]
+  
+  plots_normal[[i]] <- ggplot() +
+    geom_function(fun = function(x) dchisq(x, df = n_val), 
+                  aes(color = "Ji-cuadrada"), 
+                  xlim = c(max(0, n_val - 4*sqrt(2*n_val)), n_val + 4*sqrt(2*n_val)),
+                  size = 1.3) +
+    geom_function(fun = function(x) dnorm(x, mean = n_val, sd = sqrt(2*n_val)), 
+                  aes(color = "Normal"), 
+                  xlim = c(max(0, n_val - 4*sqrt(2*n_val)), n_val + 4*sqrt(2*n_val)),
+                  size = 1.3, linetype = "dashed") +
+    scale_color_manual(
+      values = c("Ji-cuadrada" = "#d62728", "Normal" = "#2ca02c"),
+      name = "Distribución"
+    ) +
+    xlim(max(0, n_val - 4*sqrt(2*n_val)), n_val + 4*sqrt(2*n_val)) +
+    labs(
+      title = paste("n =", n_val),
+      x = "x", y = "f(x)"
+    ) +
+    theme_minimal() + 
+   theme(
+         plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+         plot.subtitle = element_text(hjust = 0.5, size = 12),
+         axis.title = element_text(size = 12)
+         )
+}
+
+# Combinar todos los gráficos
+grid.arrange(grobs = plots_normal, ncol = 2, 
+             top = "Aproximación Normal: χ²(n) ≈ N(n, 2n)")
+```
+
+**Criterios de aproximación**
+
+La aproximación normal es considerada adecuada cuando:
+
+- **$n\geq 30$**: Aproximación general aceptable
+- **$n\geq 50$**: Aproximación muy precisa
+- **$n\geq 100$**: Prácticamente indistinguible de la normal
+
+
+### Aditividad
+
+Una propiedad fundamental de la distribución ji-cuadrada es la **aditividad**: si $X_1 \sim \chi^2(n_1)$ y $X_2 \sim \chi^2(n_2)$ son independientes, entonces:
+
+$$X_1 + X_2 \sim \chi^2(n_1 + n_2)$$
+
+Esta propiedad refleja directamente el concepto de grados de libertad como componentes independientes.
+
+### Relaciones con Otras Distribuciones
+
+La distribución ji-cuadrada mantiene relaciones importantes con otras distribuciones:
+
+- **Distribución Gamma**: $\chi^2(n) \equiv \text{Gamma}(n/2, 1/2)$
+- **Distribución Normal**: Para n grande, $\chi^2(n) \approx N(n, 2n)$
+- **Distribución Exponencial**: $\chi^2(2) \equiv \text{Exponencial}(1/2)$
+
+
+
+## Propiedades de la CDF
+
+La función de distribución acumulativa de la distribución ji-cuadrada con $n$ grados de libertad está definida como:
+
+\begin{equation}
+F(x) = \frac{1}{\Gamma(n/2)} \int_0^{x}\left(\frac{1}{2}\right)^{n/2} u^{n/2-1} e^{-u/2} du \quad \text{para } x > 0
+\end{equation}
+
+
+
+
+**Propiedades Generales**
+
+La CDF ji-cuadrada satisface todas las propiedades de una función de distribución válida:
+
+**Monotonicidad**: $F(x)$ es no decreciente, es decir, si $x_1 < x_2$, entonces $F(x_1) \leq F(x_2)$.
+
+**Límites**: $\lim_{x \to -\infty} F(x) = 0$ y $\lim_{x \to \infty} F(x) = 1$.
+
+**Continuidad por la derecha**: $F(x)$ es continua por la derecha en todos los puntos.
+
+**Dominio específico**: Para $x \leq 0$, $F(x) = 0$, ya que la distribución ji-cuadrada solo toma valores positivos.
+
+**Comportamiento en los extremos.** El comportamiento de la CDF en los extremos proporciona información valiosa sobre las características de la distribución:
+
+- **Para $x \to 0$**: $F(x) \to 0$, independientemente del valor de $n$
+- **Para $x \to \infty$**: $F(x) \to 1$, convergencia que es más rápida para valores pequeños de $n$
+- **En $x = 0$**: $F(0) = 0$ exactamente
+
+```{r}
+#| label: cdf-propiedades-basicas
+#| fig-cap: "CDF ji-cuadrada para diferentes grados de libertad"
+
+# Visualización de la CDF para diferentes valores de n
+n_valores <- c(1, 2, 3, 5, 8, 12, 15, 20)
+
+# Crear el gráfico usando geom_function
+p_cdf_basico <- ggplot() +
+  geom_function(fun = function(x) pchisq(x, df = 1), 
+                aes(color = "n = 1"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 2), 
+                aes(color = "n = 2"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 3), 
+                aes(color = "n = 3"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 5), 
+                aes(color = "n = 5"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 8), 
+                aes(color = "n = 8"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 12), 
+                aes(color = "n = 12"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 15), 
+                aes(color = "n = 15"), size = 1.3, xlim = c(0, 25)) +
+  geom_function(fun = function(x) pchisq(x, df = 20), 
+                aes(color = "n = 20"), size = 1.3, xlim = c(0, 25)) +
+  scale_color_viridis_d(
+    name = "Grados de\nLibertad",
+    limits = paste("n =", c(1, 2, 3, 5, 8, 12, 15, 20))
+  ) +
+  xlim(0, 25) + ylim(0, 1) +
+  labs(
+    title = "Función de Distribución Acumulativa Ji-cuadrada",
+    x = "x", y = "F(x)"
+  ) +
+  geom_hline(yintercept = c(0.5, 0.95), linetype = "dashed", alpha = 0.6) +
+  annotate("text", x = 22, y = 0.52, label = "P = 0.5", size = 4) +
+  annotate("text", x = 22, y = 0.97, label = "P = 0.95", size = 4)+
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+ggplotly(p_cdf_basico)
+```
+
+### Análisis por Grados de Libertad
+
+
+```{r}
+#| label: casos-especiales-cdf
+#| fig-cap: "Comportamiento especial de la CDF para n = 1,2,3,4"
+
+# Análisis detallado de casos especiales
+p_especiales <- ggplot() +
+  geom_function(fun = function(x) pchisq(x, df = 1), 
+                aes(color = "n = 1"), size = 1.5, xlim = c(0, 10)) +
+  geom_function(fun = function(x) pchisq(x, df = 2), 
+                aes(color = "n = 2"), size = 1.5, xlim = c(0, 10)) +
+  geom_function(fun = function(x) pchisq(x, df = 3), 
+                aes(color = "n = 3"), size = 1.5, xlim = c(0, 10)) +
+  geom_function(fun = function(x) pchisq(x, df = 4), 
+                aes(color = "n = 4"), size = 1.5, xlim = c(0, 10)) +
+  scale_color_manual(
+    name = "Grados de\nLibertad",
+    values = c("n = 1" = "#e31a1c", "n = 2" = "#1f78b4", 
+               "n = 3" = "#33a02c", "n = 4" = "#ff7f00"),
+    breaks = c("n = 1", "n = 2", "n = 3", "n = 4")
+  ) +
+  xlim(0, 10) + ylim(0, 1) +
+  labs(
+    title = "Casos Especiales de la CDF Ji-cuadrada",
+    subtitle = "Comportamiento para valores pequeños de n",
+    x = "x", y = "F(x)"
+  ) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", alpha = 0.6) +
+  geom_vline(xintercept = c(1, 2, 3, 4), linetype = "dotted", alpha = 0.4)+
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_especiales)
+```
+
+
+**Interpretación de casos especiales**
+
+**n = 1**: La CDF crece rápidamente desde 0, reflejando la alta concentración de probabilidad cerca del origen que caracteriza la distribución con forma "J invertida".
+
+**n = 2**: Presenta un crecimiento más suave, correspondiente a la distribución exponencial. La probabilidad $P(X \leq 2) = 1 - e^{-1} \approx 0.632$.
+
+**n ≥ 3**: La CDF muestra una forma sigmoidal más pronunciada, con un punto de inflexión que se desplaza hacia la derecha conforme aumenta $n$.
+
+
+## Relación entre PDF y CDF
+
+
+La relación entre la función de densidad de probabilidad (PDF) y la función de distribución acumulativa (CDF) está dada por:
+
+$$F'(x) = f(x) \quad \text{y} \quad F(x) = \int_{-\infty}^x f(u) du$$
+
+Para la distribución ji-cuadrada:
+$$F(x) = \int_0^x f(u) du = \int_0^x \frac{1}{\Gamma(n/2)} \left(\frac{1}{2}\right)^{n/2} u^{n/2-1} e^{-u/2} du$$
+
+```{r}
+#| label: pdf-cdf-relacion
+#| fig-cap: "Relación entre PDF y CDF para n = 5"
+
+# Mostrar la relación entre PDF y CDF
+n_ejemplo <- 5
+x_rango <- seq(0, 15, length.out = 200)
+coef <- 0.5  # Factor de escala para la CDF
+
+# Crear datos para sombreado del área bajo la curva
+x_area <- seq(0, 8, length.out = 100)
+df_area <- data.frame(
+  x = x_area,
+  y = dchisq(x_area, df = n_ejemplo)
+)
+
+p_relacion <- ggplot() +
+  stat_function(fun = function(x) dchisq(x, df = n_ejemplo), geom = "area", fill = "lightblue", xlim = c(0, 8)) +
+  geom_function(fun = function(x) dchisq(x, df = n_ejemplo), 
+                aes(color = "PDF f(x)"), size = 1.4, xlim = c(0, 15)) +
+  geom_function(fun = function(x) coef * pchisq(x, df = n_ejemplo), 
+                aes(color = "CDF F(x) × 0.5"), size = 1.4, xlim = c(0, 15)) +
+  geom_vline(xintercept = 8, linetype = "dashed", color = "red", alpha = 0.8) +
+  annotate("label", x = 9, y = 0.2, label = paste("F(8)=P(X ≤ 8)=", round(pchisq(8, n_ejemplo), 3)), color = "black", size = 4.1)+
+  scale_color_manual(
+    name = "Función",
+    values = c("PDF f(x)" = "#d62728", "CDF F(x) × 0.5" = "#1f77b4"),
+    breaks = c("PDF f(x)", "CDF F(x)")
+  ) +
+  xlim(0, 15) + ylim(0, 1.1) +
+  labs(
+    title = "Relación entre PDF y CDF (n = 5)",
+    subtitle = "Área azul = F(8) = P(X ≤ 8)",
+    x = "x"
+  ) +
+  scale_y_continuous(name = "Densidad",
+                     sec.axis = sec_axis(~ . * (1/coef), name = "Probabilidad acumulada")) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    axis.title.y = element_text(color = "#d62728"),
+    axis.title.y.right = element_text(color = "#1f77b4"),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+
+print(p_relacion)
+
+# Calcular el valor exacto
+prob_exacta <- pchisq(8, df = n_ejemplo)
+cat(paste("F(8; n=5) = P(X ≤ 8) =", round(prob_exacta, 4)))
+```
+
+
+## Medidas Descriptivas
+
+### Media
+
+La media de la distribución ji-cuadrada con n grados de libertad está dada por:
+
+$$E(X) = \mu = n$$
+
+Esta relación simple y directa indica que la media de la distribución ji-cuadrada es exactamente igual al número de grados de libertad. Esta propiedad surge naturalmente de su construcción como suma de $n$ variables aleatorias normales estándar elevadas al cuadrado, cada una con media 1.
+
+```{r}
+#| label: evolucion-media
+#| echo: true
+#| fig-cap: "Evolución de la media con los grados de libertad"
+
+# Generar datos para el análisis de la media
+n_rango <- 1:50
+df_media <- data.frame(
+  n = n_rango,
+  media_teorica = n_rango,
+  desv_estandar = sqrt(2 * n_rango)
+)
+
+# Gráfico de la media vs n
+p_media <- ggplot(df_media, aes(x = n, y = media_teorica)) +
+  geom_line(size = 1.5, color = "#2E86AB") +
+  geom_point(size = 2, color = "#2E86AB", alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", alpha = 0.6, color = "gray50") +
+  labs(
+    title = "Media de la Distribución Ji-cuadrada",
+    subtitle = "E(X) = n (relación lineal perfecta)",
+    x = "Grados de libertad (n)",
+    y = "Media E(X)"
+  ) +
+  scale_x_continuous(breaks = seq(0, 50, 10)) +
+  scale_y_continuous(breaks = seq(0, 50, 10)) +
+  annotate("text", x = 40, y = 15, label = "E(X) = n", size = 5, color = "#2E86AB", fontface = "bold")+
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_media)
+```
+
+**Visualización con distribuciones**
+
+```{r}
+#| label: media-distribuciones
+#| echo: true
+#| fig-cap: "Media teórica vs observada en las distribuciones"
+
+# Mostrar cómo la media coincide con el centro de masa de las distribuciones
+n_ejemplos <- c(3, 8, 15, 25)
+
+p_distribuciones_media <- ggplot() +
+  geom_function(fun = function(x) dchisq(x, df = 3), 
+                aes(color = "n = 3"), size = 1.2, xlim = c(0, 40)) +
+  geom_function(fun = function(x) dchisq(x, df = 8), 
+                aes(color = "n = 8"), size = 1.2, xlim = c(0, 40)) +
+  geom_function(fun = function(x) dchisq(x, df = 15), 
+                aes(color = "n = 15"), size = 1.2, xlim = c(0, 40)) +
+  geom_function(fun = function(x) dchisq(x, df = 25), 
+                aes(color = "n = 25"), size = 1.2, xlim = c(0, 40)) +
+  # Líneas verticales en las medias
+  geom_vline(xintercept = 3, color = scales::pal_viridis()(4)[1], linetype = "dashed", alpha = 0.8) +
+  geom_vline(xintercept = 8, color = scales::pal_viridis()(4)[2], linetype = "dashed", alpha = 0.8) +
+  geom_vline(xintercept = 15, color = scales::pal_viridis()(4)[3], linetype = "dashed", alpha = 0.8) +
+  geom_vline(xintercept = 25, color = scales::pal_viridis()(4)[4], linetype = "dashed", alpha = 0.8) +
+  scale_color_viridis_d(
+    name = "Grados de\nLibertad",
+    limits = c("n = 3", "n = 8", "n = 15", "n = 25")
+  ) +
+  xlim(0, 40) + ylim(0, 0.15) +
+  labs(
+    title = "Localización de la Media en las Distribuciones",
+    subtitle = "Las líneas discontinuas indican E(X) = n para cada distribución",
+    x = "x", y = "f(x)") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_distribuciones_media)
+```
+
+
+### Moda
+
+La moda de la distribución ji-cuadrada depende del valor de los grados de libertad:
+
+\begin{equation}
+\text{Moda} = \begin{cases}
+\text{No existe (supremo en } x = 0\text{)} & \text{si } n = 1 \\
+0 & \text{si } n = 2 \\
+n - 2 & \text{si } n > 2
+\end{cases}
+\end{equation}
+
+Para $n > 2$, la moda se desplaza linealmente con los grados de libertad, manteniéndose siempre dos unidades por debajo de la media.
+
+**Comportamiento por regiones**
+
+La moda de la distribución ji-cuadrada presenta un comportamiento diferenciado según los grados de libertad:
+
+- **n = 1**: No existe moda en sentido estricto (función monótonamente decreciente)
+- **n = 2**: Moda en x = 0
+- **n > 2**: Moda = n - 2 (relación lineal)
+
+```{r}
+#| label: evolucion-moda
+#| echo: true
+#| fig-cap: "Evolución de la moda con los grados de libertad"
+
+# Calcular moda para diferentes valores de n
+n_moda <- 1:30
+df_moda <- data.frame(
+  n = n_moda,
+  moda = case_when(
+    n_moda == 1 ~ NA_real_,  # No existe
+    n_moda == 2 ~ 0,
+    n_moda > 2 ~ n_moda - 2
+  ),
+  media = n_moda
+)
+
+# Gráfico de la evolución de la moda
+p_moda_evolucion <- ggplot(df_moda, aes(x = n)) +
+  geom_line(aes(y = moda, color = "Moda"), size = 1.5, na.rm = TRUE) +
+  geom_point(aes(y = moda, color = "Moda"), size = 2.5, na.rm = TRUE) +
+  geom_line(aes(y = media, color = "Media"), size = 1.2, alpha = 0.7) +
+  geom_point(data = filter(df_moda, n == 2), aes(x = n, y = moda), 
+             color = "firebrick", size = 4, shape = 17) +
+  scale_color_manual(
+    name = "Medida",
+    values = c("Moda" = "#F28E2B", "Media" = "#4E79A7"),
+    breaks = c("Moda", "Media")
+  ) +
+  scale_x_continuous(breaks = seq(0, 30, 5)) +
+  scale_y_continuous(breaks = seq(0, 30, 5)) +
+  labs(
+    title = "Evolución de la Moda vs Media",
+    subtitle = "Moda = n - 2 para n > 2; Moda = 0 para n = 2; No existe para n = 1",
+    x = "Grados de libertad (n)",
+    y = "Valor"
+  ) +
+  annotate("text", x = 25, y = 20, label = "Moda = n - 2", 
+           color = "#F28E2B", size = 4, fontface = "bold") +
+  annotate("text", x = 20, y = 25, label = "Media = n", 
+           color = "#4E79A7", size = 4, fontface = "bold") +
+  annotate("text", x = 6, y = 2, label = "n = 2:\nModa = 0", 
+           color = "#F28E2B", size = 3.5, hjust = 0) +
+  annotate("text", x = 1.5, y = 10, label = "n = 1:\nNo existe moda", 
+           color = "red", size = 4, hjust = 0)+
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_moda_evolucion)
+```
+
+**Visualización de modas en las distribuciones**
+
+```{r}
+#| label: moda-distribuciones
+#| warning: false
+#| fig-cap: "Visualización de las modas en las distribuciones ji-cuadrada"
+
+# Casos especiales de la moda
+n_casos_moda <- c(1, 2, 4, 8, 12)
+colores_moda <- c("#E31A1C", "#1F78B4", "#33A02C", "#FF7F00", "#6A3D9A")
+
+p_casos_moda <- ggplot() +
+  geom_function(fun = function(x) dchisq(x, df = 1), 
+                aes(color = "n = 1 (sin moda)"), size = 1.4, xlim = c(0, 20)) +
+  geom_function(fun = function(x) dchisq(x, df = 2), 
+                aes(color = "n = 2 (moda = 0)"), size = 1.4, xlim = c(0, 20)) +
+  geom_function(fun = function(x) dchisq(x, df = 4), 
+                aes(color = "n = 4 (moda = 2)"), size = 1.4, xlim = c(0, 20)) +
+  geom_function(fun = function(x) dchisq(x, df = 8), 
+                aes(color = "n = 8 (moda = 6)"), size = 1.4, xlim = c(0, 20)) +
+  geom_function(fun = function(x) dchisq(x, df = 12), 
+                aes(color = "n = 12 (moda = 10)"), size = 1.4, xlim = c(0, 20)) +
+  # Puntos en las modas
+  geom_point(aes(x = 0, y = dchisq(0, 2)), color = "#1F78B4", size = 4) +
+  geom_point(aes(x = 2, y = dchisq(2, 4)), color = "#33A02C", size = 4) +
+  geom_point(aes(x = 6, y = dchisq(6, 8)), color = "#FF7F00", size = 4) +
+  geom_point(aes(x = 10, y = dchisq(10, 12)), color = "#6A3D9A", size = 4) +
+  # Líneas verticales en las modas
+  geom_vline(xintercept = c(0, 2, 6, 10), linetype = "dashed", alpha = 0.6) +
+  scale_color_manual(
+    name = "Casos",
+    values = setNames(colores_moda, c("n = 1 (sin moda)", "n = 2 (moda = 0)", 
+                                     "n = 4 (moda = 2)", "n = 8 (moda = 6)", 
+                                     "n = 12 (moda = 10)")),
+    breaks = c("n = 1 (sin moda)", "n = 2 (moda = 0)", "n = 4 (moda = 2)", 
+               "n = 8 (moda = 6)", "n = 12 (moda = 10)")
+  ) +
+  xlim(0, 18) + ylim(0, 0.5) +
+  labs(
+    title = "Localización de las Modas en las Distribuciones",
+    subtitle = "Los puntos grandes indican la posición de cada moda",
+    x = "x", y = "f(x)"
+  )+ 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_casos_moda)
+```
+
+
+
+### Varianza
+
+La varianza de la distribución ji-cuadrada está dada por:
+
+$$\text{Var}(X) = \sigma^2 = 2n$$
+
+La desviación estándar correspondiente es:
+
+$$\sigma = \sqrt{2n}$$
+
+Esta relación lineal entre la varianza y los grados de libertad indica que la dispersión de la distribución crece proporcionalmente con n.
+
+
+**Comportamiento Teórico**
+
+La varianza de la distribución ji-cuadrada presenta una relación lineal con los grados de libertad: $\text{Var}(X) = 2n$. Esta propiedad implica que la dispersión crece proporcionalmente con n, pero a una tasa del doble de la media.
+
+```{r}
+#| label: evolucion-varianza
+#| echo: true
+#| fig-cap: "Evolución de la varianza y desviación estándar"
+
+# Análisis de la varianza y desviación estándar
+n_var <- 1:50
+df_varianza <- data.frame(
+  n = n_var,
+  varianza = 2 * n_var,
+  desv_estandar = sqrt(2 * n_var),
+  coef_variacion = sqrt(2 * n_var) / n_var  # CV = σ/μ
+)
+
+# Gráfico de varianza y desviación estándar
+p_var_desv <- ggplot(df_varianza, aes(x = n)) +
+  geom_line(aes(y = varianza, color = "Varianza"), size = 1.5) +
+  geom_line(aes(y = desv_estandar, color = "Desviación Estándar"), size = 1.5) +
+  geom_point(aes(y = varianza, color = "Varianza"), size = 2, alpha = 0.6) +
+  geom_point(aes(y = desv_estandar, color = "Desviación Estándar"), size = 2, alpha = 0.6) +
+  scale_color_manual(
+    name = "Medida",
+    values = c("Varianza" = "#E15759", "Desviación Estándar" = "#76B7B2"),
+    breaks = c("Varianza", "Desviación Estándar")
+  ) +
+  scale_x_continuous(breaks = seq(0, 50, 10)) +
+  labs(
+    title = "Evolución de la Varianza y Desviación Estándar",
+    subtitle = "Var(X) = 2n;  σ = √(2n)",
+    x = "Grados de libertad (n)",
+    y = "Valor"
+  ) +
+  annotate("text", x = 30, y = 80, label = "Var(X) = 2n", 
+           color = "#E15759", size = 4.5, fontface = "bold") +
+  annotate("text", x = 40, y = 15, label = "σ = √(2n)", 
+           color = "#76B7B2", size = 4.5, fontface = "bold")+ 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_var_desv)
+```
+
+### Coeficiente de Variación
+
+El coeficiente de variación (CV) mide la dispersión relativa y está dado por:
+$$CV = \frac{\sigma}{\mu} = \frac{\sqrt{2n}}{n} = \sqrt{\frac{2}{n}}$$
+
+```{r}
+#| label: coeficiente-variacion
+#| echo: true
+#| fig-cap: "Evolución del coeficiente de variación"
+
+# Gráfico del coeficiente de variación
+p_cv <- ggplot(df_varianza, aes(x = n, y = coef_variacion)) +
+  geom_line(size = 1.5, color = "#AF7AA1") +
+  geom_point(size = 2, color = "#AF7AA1", alpha = 0.7) +
+  geom_hline(yintercept = c(0.5, 1, 1.5), linetype = "dashed", alpha = 0.5) +
+  scale_x_continuous(breaks = seq(0, 50, 10)) +
+  scale_y_continuous(breaks = seq(0, 2, 0.5)) +
+  labs(
+    title = "Coeficiente de Variación",
+    subtitle = "CV = σ/μ = √(2/n) - Decrece con √n",
+    x = "Grados de libertad (n)",
+    y = "Coeficiente de Variación"
+  ) +
+  annotate("text", x = 45, y = 0.1, label = "CV → 0 cuando n → ∞", 
+           color = "#AF7AA1", size = 3.5, fontface = "italic")+ 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+    )
+
+print(p_cv)
+```
+
+
+
+## Ejercicios Propuestos
+
+::: {#exr-simulaciones}
+
+Genera muestras aleatorias de diferentes tamaños desde 100 hasta 10000 observaciones para las distribuciones ji-cuadrada con n = 5, 20 y 50 grados de libertad. En casa caso:
+
+1. Genera una gráfica de convergencia de la media muestral hacia la media teórica a medida que aumenta el tamaño de la muestra.
+
+2. Genera una gráfica de convergencia de la varianza muestral hacia la varianza teórica a medida que aumenta el tamaño de la muestra.
+
+3. Para el tamaño de muestra más grande, genera un histograma de la muestra junto con la función de densidad teórica superpuesta.
+
+
+```{r}
+#| label: solucion-simulaciones-ji
+#| code-fold: true
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 12
+
+grados_libertad_lista <- c(5, 20, 50)
+tamanos <- seq(100, 10000, by = 100)
+n_max <- max(tamanos)
+set.seed(123) 
+
+plots_convergencia <- list()
+plot_index <- 1
+
+for (n_df in grados_libertad_lista) {
+  
+  media_teorica <- n_df
+  varianza_teorica <- 2 * n_df
+  muestra_completa <- rchisq(n_max, df = n_df)
+  
+  medias_acumuladas <- numeric(length(tamanos))
+  varianzas_acumuladas <- numeric(length(tamanos))
+  for (i in 1:length(tamanos)) {
+    n_actual <- tamanos[i]
+    muestra_parcial <- muestra_completa[1:n_actual]
+    medias_acumuladas[i] <- mean(muestra_parcial)
+    varianzas_acumuladas[i] <- var(muestra_parcial)
+  }
+  
+  data_conv_media <- data.frame(n = tamanos, Media_Muestral = medias_acumuladas)
+  data_conv_var <- data.frame(n = tamanos, Varianza_Muestral = varianzas_acumuladas)
+  
+  # 1. Gráfico de convergencia de la media
+  grafico_media <- ggplot(data_conv_media) +
+    geom_line(aes(x = n, y = Media_Muestral), color = "lightblue", linewidth = 1) +
+    geom_hline(yintercept = media_teorica, color = "plum", linetype = "dashed", linewidth = 1.2) +
+    labs(
+      title = paste("Convergencia Media Muestral (n=", n_df, ")"),
+      subtitle = paste("Teórica =", media_teorica),
+      x = "Tamaño de Muestra", y = "Media Acumulada"
+    ) +
+    theme_minimal()
+  
+  # 2. Gráfico de convergencia de la varianza
+  grafico_varianza <- ggplot(data_conv_var) +
+    geom_line(aes(x = n, y = Varianza_Muestral), color = "lightblue", linewidth = 1) +
+    geom_hline(yintercept = varianza_teorica, color = "plum", linetype = "dashed", linewidth = 1.2) +
+    labs(
+      title = paste("Convergencia Varianza Muestral (n=", n_df, ")"),
+      subtitle = paste("Teórica =", varianza_teorica),
+      x = "Tamaño de Muestra", y = "Varianza Acumulada"
+    ) +
+    theme_minimal()
+    
+  # 3. Histograma vs PDF Teórica (para n_max)
+  data_histograma <- data.frame(valores = muestra_completa)
+  
+  grafico_histograma <- ggplot(data_histograma, aes(x = valores)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "darkgreen", alpha = 0.7, color = "white") +
+    stat_function(
+      fun = dchisq,
+      args = list(df = n_df),
+      color = "darkgreen", # Amarillo
+      linewidth = 1.5
+    ) +
+    labs(
+      title = paste("Histograma vs PDF Teórica (n=", n_df, ")"),
+      subtitle = paste("Muestra de tamaño N =", format(n_max, big.mark = ",")),
+      x = "Valores Simulados", y = "Densidad"
+    ) +
+    theme_minimal() +
+    xlim(0, quantile(muestra_completa, 0.995)) # Ajustar eje x
+
+  plots_convergencia[[plot_index]] <- grafico_media
+  plots_convergencia[[plot_index + 1]] <- grafico_varianza
+  plots_convergencia[[plot_index + 2]] <- grafico_histograma
+  plot_index <- plot_index + 3
+}
+
+grid.arrange(grobs = plots_convergencia, ncol = 3, 
+             top = "Análisis de Simulación para Chi-cuadrada")
+```
+
+
+:::
+
+
+::: {#exr-tcl_ji}
+
+Para diferentes tamaños de muestra verifica numéricamente el Teorema Central del Límite aplicado a la distribución ji-cuadrada, elige cualquier valor de los grados de libertad.
+
+
+```{r}
+#| label: solucion-tcl-ji
+#| code-fold: true
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 8
+
+grados_lib_base <- 10 # n para Chi2 original
+tamanos_muestra_k <- c(5, 15, 30, 100) # k: tamaño de cada muestra
+num_medias <- 2000 # Número de medias muestrales a generar para cada k
+set.seed(654) # Para reproducibilidad
+media_orig_chi <- grados_lib_base
+varianza_orig_chi <- 2 * grados_lib_base
+
+lista_medias_chi <- list()
+for (k in tamanos_muestra_k) {
+  # Generar 'num_medias' medias muestrales, cada una de 'k' observaciones Chi2(10)
+  medias <- replicate(num_medias, mean(rchisq(k, df = grados_lib_base)))
+  lista_medias_chi[[paste("k =", k)]] <- medias
+}
+
+data_tcl_chi <- data.frame()
+for (nombre_k in names(lista_medias_chi)) {
+  temp_df <- data.frame(media_muestral = lista_medias_chi[[nombre_k]], k_label = nombre_k)
+  data_tcl_chi <- rbind(data_tcl_chi, temp_df)
+}
+data_tcl_chi$k_label <- factor(data_tcl_chi$k_label, levels = paste("k =", tamanos_muestra_k))
+
+tabla_tcl_stats_chi <- data.frame()
+for (nombre_k in names(lista_medias_chi)) {
+    k_val <- as.numeric(gsub("k = ", "", nombre_k))
+    medias_actuales <- lista_medias_chi[[nombre_k]]
+    
+    media_obs <- mean(medias_actuales)
+    var_obs <- var(medias_actuales)
+    
+    media_teo_barraX <- media_orig_chi
+    var_teo_barraX <- varianza_orig_chi / k_val
+    
+    temp_stats <- data.frame(k = k_val, Media_Obs = media_obs, Media_Teo = media_teo_barraX,
+                             Var_Obs = var_obs, Var_Teo = var_teo_barraX)
+    tabla_tcl_stats_chi <- rbind(tabla_tcl_stats_chi, temp_stats)
+}
+
+cat("Tabla de Estadísticas de las Medias Muestrales (Chi2 vs TCL):\n")
+tabla_kable_tcl_chi <- kable(tabla_tcl_stats_chi, digits = 5, 
+                             caption = "Estadísticas Observadas vs. Teóricas (TCL)")
+tabla_formateada_tcl_chi <- kable_styling(tabla_kable_tcl_chi, bootstrap_options = "striped")
+print(tabla_formateada_tcl_chi)
+
+grafico_tcl_chi <- ggplot(data_tcl_chi, aes(x = media_muestral)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, fill = "orange", alpha = 0.7, color = "white") +
+  # Superponer la curva Normal teórica esperada por el TCL: N(n, 2n/k)
+  stat_function(
+    fun = dnorm,
+    args = list(mean = media_orig_chi, sd = sqrt(varianza_orig_chi / as.numeric(gsub("k = ", "", data_tcl_chi$k_label)))),
+    color = "blue", # Azul
+    linewidth = 1.1,
+    linetype = "dashed"
+  ) +
+  facet_wrap(~k_label, scales = "free") + 
+  labs(
+    title = paste("Verificación del TCL con Distribución Chi-cuadrada (n=", grados_lib_base, ")"),
+    subtitle = "Distribución de las medias muestrales vs. Normal Teórica (línea azul)",
+    x = "Media Muestral (k observaciones)",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+
+print(grafico_tcl_chi)
+```
+
+
+
+:::
+
+
+
+::: {#exr-suma_normal_cuadrada}
+
+Mediante simulaciones numéricas, verifica la propiedad de aditividad de la distribución ji-cuadrada sumando variables aleatorias normales estándar elevadas al cuadrado. Compara los resultados con la distribución ji-cuadrada teórica.
+
+
+```{r}
+#| label: solucion-suma-normal-cuadrada
+#| code-fold: true
+#| warning: false
+
+n_sumandos <- 8 
+n_sim <- 15000
+set.seed(321)
+matriz_normales <- matrix(rnorm(n_sim * n_sumandos, mean = 0, sd = 1), 
+                          nrow = n_sim, ncol = n_sumandos)
+
+matriz_cuadrados <- matriz_normales^2
+sumas_cuadrados <- rowSums(matriz_cuadrados)
+data_sumas_z2 <- data.frame(valores_suma = sumas_cuadrados)
+
+grafico_sumas_z2 <- ggplot(data_sumas_z2, aes(x = valores_suma)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "darkgreen", alpha = 0.7, color = "white") +
+  stat_function(
+    fun = dchisq,
+    args = list(df = n_sumandos),
+    color = "black", # Dorado
+    linewidth = 1.3
+  ) +
+  labs(
+    title = paste("Verificación: Suma de", n_sumandos, "N(0,1)² vs. Chi2(", n_sumandos, ")"),
+    subtitle = "Histograma de sumas simuladas vs. PDF teórica Chi2 (línea dorada)",
+    x = "Suma de Z²",
+    y = "Densidad"
+  ) +
+  theme_minimal() +
+  xlim(0, quantile(sumas_cuadrados, 0.995)) # Ajustar eje x
+
+print(grafico_sumas_z2)
+
+media_sim_z2 <- mean(sumas_cuadrados)
+var_sim_z2 <- var(sumas_cuadrados)
+media_teo_z2 <- n_sumandos # Media teórica de Chi2(n) es n
+var_teo_z2 <- 2 * n_sumandos # Varianza teórica de Chi2(n) es 2n
+
+cat("\nComparación de Estadísticas (Suma Z² vs. Chi2(8)):\n")
+cat("===================================================\n")
+cat("Media Simulada (Suma Z²):", round(media_sim_z2, 4), "(Teórica:", media_teo_z2, ")\n")
+cat("Varianza Simulada (Suma Z²):", round(var_sim_z2, 4), "(Teórica:", var_teo_z2, ")\n")
+```
+
+
+:::
+
+::: {#exr-aproximacion_normal}
+
+Mediante simulaciones numéricas, verifica la aproximación normal de la distribución ji-cuadrada para diferentes valores de n (por ejemplo, n = 10, 30, 50, 100). Compara las distribuciones muestrales con la normal teórica.
+
+
+```{r}
+#| label: solucion-aproximacion-normal
+#| code-fold: true
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 8
+
+n_aprox_vals <- c(10, 30, 50, 100)
+n_sim_aprox <- 15000
+set.seed(987)
+plots_aprox <- list()
+
+for (n_df in n_aprox_vals) {
+  muestra_chi2 <- rchisq(n_sim_aprox, df = n_df)
+  
+  data_aprox <- data.frame(valores = muestra_chi2)
+  media_norm_teo <- n_df
+  sd_norm_teo <- sqrt(2 * n_df)
+  
+  grafico_actual <- ggplot(data_aprox, aes(x = valores)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "lightblue", alpha = 0.8, color = "white") +
+    stat_function(
+      fun = dnorm,
+      args = list(mean = media_norm_teo, sd = sd_norm_teo),
+      color = "black", # Rojo
+      linewidth = 1.2,
+      linetype = "dashed"
+    ) +
+    labs(
+      title = paste("Aproximación Normal para Chi2(", n_df, ")"),
+      subtitle = "Histograma vs. N(", n_df, ",", 2*n_df, ") teórica (línea roja)",
+      x = "Valores Chi-cuadrada",
+      y = "Densidad"
+    ) +
+    theme_minimal() +
+    xlim(max(0, n_df - 4*sd_norm_teo), n_df + 4*sd_norm_teo) # Ajustar límites
+    
+  plots_aprox[[paste("n =", n_df)]] <- grafico_actual
+}
+
+grid.arrange(grobs = plots_aprox, ncol = 2, 
+             top = "Verificación de la Aproximación Normal a Chi-cuadrada")
+```
+
+:::
+
+::: {#exr-suma_ji}
+
+Por medio de simulaciones numéricas, verifica la propiedad de aditividad de la distribución ji-cuadrada sumando dos variables aleatorias ji-cuadrada independientes. Compara los resultados con la distribución ji-cuadrada teórica.
+
+```{r}
+#| label: solucion-suma-ji
+#| code-fold: true
+#| warning: false
+
+n1 <- 5
+n2 <- 10
+n_suma <- n1 + n2
+n_sim_ad <- 15000
+set.seed(654)
+
+muestra_X1 <- rchisq(n_sim_ad, df = n1)
+muestra_X2 <- rchisq(n_sim_ad, df = n2)
+
+suma_Y <- muestra_X1 + muestra_X2
+data_suma_ji <- data.frame(valores_Y = suma_Y)
+
+grafico_suma_ji <- ggplot(data_suma_ji, aes(x = valores_Y)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "orange", alpha = 0.8, color = "white") +
+  stat_function(
+    fun = dchisq,
+    args = list(df = n_suma),
+    color = "black", # Verde oscuro
+    linewidth = 1.3
+  ) +
+  labs(
+    title = paste("Verificación Aditividad: Chi2(", n1, ") + Chi2(", n2, ") vs. Chi2(", n_suma, ")"),
+    subtitle = "Histograma de sumas simuladas vs. PDF teórica Chi2 (línea verde)",
+    x = "Suma Simulada (Y = X1 + X2)",
+    y = "Densidad"
+  ) +
+  theme_minimal() +
+  xlim(0, quantile(suma_Y, 0.995)) # Ajustar eje x
+
+print(grafico_suma_ji)
+
+media_sim_Y <- mean(suma_Y)
+var_sim_Y <- var(suma_Y)
+media_teo_Y <- n_suma # Media teórica de Chi2(n1+n2) es n1+n2
+var_teo_Y <- 2 * n_suma # Varianza teórica de Chi2(n1+n2) es 2*(n1+n2)
+
+cat("\nComparación de Estadísticas (Suma Y vs. Chi2(15)):\n")
+cat("====================================================\n")
+cat("Media Simulada (Y):", round(media_sim_Y, 4), "(Teórica:", media_teo_Y, ")\n")
+cat("Varianza Simulada (Y):", round(var_sim_Y, 4), "(Teórica:", var_teo_Y, ")\n")
+```
+
+
+
+:::
+
